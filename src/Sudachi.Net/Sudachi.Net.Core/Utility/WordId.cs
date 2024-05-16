@@ -13,8 +13,6 @@ namespace Sudachi.Net.Core.Utility
         /// <summary>Internal word ids can't be larger than this number.</summary>
         public static readonly int MAX_WORD_ID = 0x0fffffff;
 
-        // NOTE: 0xe = 0b1110なので、符号付きIntで負のフラグが立たないようにしている？
-
         /// <summary>Dictionary ids can't be larger than this number.</summary>
         public static readonly int MAX_DIC_ID = 0xe;
 
@@ -55,8 +53,6 @@ namespace Sudachi.Net.Core.Utility
 
             return MakeUnchecked(dic, word);
         }
-
-        // TODO: intを右ビットシフトすると、符号ビットがコピーされるので、期待した値にならない可能性がある。
 
         /// <summary>
         /// Extract dictionary number from the combined word id.
