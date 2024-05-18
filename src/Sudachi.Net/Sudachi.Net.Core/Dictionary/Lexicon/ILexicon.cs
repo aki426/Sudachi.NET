@@ -8,6 +8,13 @@ namespace Sudachi.Net.Core.Dictionary.Lexicon
     {
         IEnumerator<int[]> Lookup(byte[] text, int offset);
 
+        /// <summary>
+        /// Get WordId.
+        /// </summary>
+        /// <param name="headword">The headword.</param>
+        /// <param name="posId">The pos id.</param>
+        /// <param name="readingForm">The reading form.</param>
+        /// <returns>An int.</returns>
         int GetWordId(string headword, short posId, string readingForm);
 
         /// <summary>
