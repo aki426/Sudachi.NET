@@ -125,7 +125,8 @@ namespace Sudachi.Net.Core.Dictionary.Lexicon
 
     //        public void Reset() => throw new System.NotSupportedException();
 
-    //        public void Dispose() { }
+    //        public void Dispose()
+    //        { }
     //    }
     //}
 }
