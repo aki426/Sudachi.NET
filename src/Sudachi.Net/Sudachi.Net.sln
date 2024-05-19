@@ -5,7 +5,9 @@ VisualStudioVersion = 17.9.34616.47
 MinimumVisualStudioVersion = 10.0.40219.1
 Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "Sudachi.Net.Core", "Sudachi.Net.Core\Sudachi.Net.Core.csproj", "{56772FC0-5DA8-46F7-B74C-43BD46717FDB}"
 EndProject
-Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Sudachi.Net.CoreTests", "Sudachi.Net.CoreTests\Sudachi.Net.CoreTests.csproj", "{C6EACA6D-34A9-4295-B5F3-C41A44906879}"
+Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "Sudachi.Net.CoreTests", "Sudachi.Net.CoreTests\Sudachi.Net.CoreTests.csproj", "{C6EACA6D-34A9-4295-B5F3-C41A44906879}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "DartsClone.Net", "DartsClone.Net\DartsClone.Net.csproj", "{C5A44249-90A0-494E-8E70-5F3918ABD525}"
 EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
@@ -21,6 +23,10 @@ Global
 		{C6EACA6D-34A9-4295-B5F3-C41A44906879}.Debug|Any CPU.Build.0 = Debug|Any CPU
 		{C6EACA6D-34A9-4295-B5F3-C41A44906879}.Release|Any CPU.ActiveCfg = Release|Any CPU
 		{C6EACA6D-34A9-4295-B5F3-C41A44906879}.Release|Any CPU.Build.0 = Release|Any CPU
+		{C5A44249-90A0-494E-8E70-5F3918ABD525}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{C5A44249-90A0-494E-8E70-5F3918ABD525}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{C5A44249-90A0-494E-8E70-5F3918ABD525}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{C5A44249-90A0-494E-8E70-5F3918ABD525}.Release|Any CPU.Build.0 = Release|Any CPU
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE
