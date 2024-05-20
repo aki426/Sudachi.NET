@@ -1,8 +1,10 @@
 ﻿using System;
 using System.Buffers;
+using System.Collections;
 using System.Collections.Generic;
 using System.Drawing;
 using System.IO;
+using System.IO.MemoryMappedFiles;
 using System.Runtime.InteropServices;
 using DartsClone.Net.Details;
 
@@ -41,6 +43,17 @@ namespace DartsClone.Net
 
         /// <summary>integer array as structures of Darts-clone.</summary>
         public Memory<int> Array { get; private set; }
+
+        // NOTE: ＜当面の実装方針について＞
+        // JAVAではByteBufferが全ての基本単位であるらしく、IntArrayはByteBuffer.asIntBuffferから作成している。
+        // これによって実体はByteBufferであるが実体を共有するViewとしてIntのBufferを実現している。
+        // C#でもこれと同じようにByte型とInt型のインターフェースを持ちながら実体は同じメモリを共有する
+        // Memory<byte>とMemory<int>を実装したい。
+        // しかしJAVA版のコードを見ると実用上ByteBufferはIOにのみ使っているだけで、DARTSの計算ロジックで用いるのは
+        // IntBufferの方だけである。
+        // つまり本質的に必要なのはIntBufferでありMemory<int>なので、DARTSの原単位はInt（4Byte）ということになる。
+        // C#版では一旦インターフェースとしてのMemory<byte>のも残すが、IOから内部ロジックまでMemory<int>側に寄せておき、
+        // Sudachi.NETの実装も含めて不要と判断した時点でMemory<byte>を除去するものとする。
 
         /// <summary>the structures of Darts-clone as an array of byte</summary>
         public Memory<byte> ByteArray { get; private set; }
@@ -117,6 +130,54 @@ namespace DartsClone.Net
             inputFile.Read(ByteArray.Span);
             Array = ByteArray.Cast<byte, int>();
             Size = Array.Length;
+        }
+
+        public void Open(FileInfo fileInfo, long position, long totalSize)
+        {
+            if (position < 0)
+            {
+                position = 0;
+            }
+            if (totalSize <= 0)
+            {
+                totalSize = fileInfo.Length;
+            }
+
+            // NOTE: JAVA版ではFileChannelからMappedByteBufferを取得しているが、C#版では変換経路が異なり、
+            // MemoryMappedFile => MemoryMappedViewAccessor => byte[] => Memory<byte>となる。
+            // よって引数としてFileInfoを渡せば十分ということになる。
+
+            // NOTE: より単純には次の方法で良いはずだが、positionとtotalSizeの指定という汎用性のために
+            // MemoryMappedViewAccessorを用いている。
+            //long fileSize = fileInfo.Length;
+            //byte[] byteArray = File.ReadAllBytes(fileInfo.FullName);
+            //Memory<byte> memory = new Memory<byte>(byteArray);
+
+            // NOTE: 辞書データのロードの仕方として、MemoryではなくアプリケーションスタックにデータをロードするSpanを使う方法もある。
+            // ただし、SudaciDictはFullの場合400MBにも及ぶためスタックオーバーフローを引き起こす可能性があり、Memoryを選択した。
+
+            using (MemoryMappedFile mmf = MemoryMappedFile.CreateFromFile(fileInfo.FullName, FileMode.Open, null, totalSize, MemoryMappedFileAccess.Read))
+            {
+                using (MemoryMappedViewAccessor accessor = mmf.CreateViewAccessor(position, totalSize, MemoryMappedFileAccess.Read))
+                {
+                    var buffer = new byte[totalSize];
+                    accessor.ReadArray(0, buffer, 0, buffer.Length);
+                    ByteArray = new Memory<byte>(buffer);
+
+                    if (ByteArray.Length % sizeof(int) != 0)
+                    {
+                        throw new ArgumentException("Buffer length must be a multiple of sizeof(int).");
+                    }
+
+                    var intArray = new Memory<int>((int[])buffer);
+
+                    Span<int> span = MemoryMarshal.Cast<byte, int>(ByteArray.Span);
+                    var intArray = new int[buffer.Length / sizeof(int)];
+                    Buffer.BlockCopy(buffer, 0, intArray, 0, buffer.Length);
+
+                    int size = intArray.Length;
+                }
+            }
         }
 
         /// <summary>
