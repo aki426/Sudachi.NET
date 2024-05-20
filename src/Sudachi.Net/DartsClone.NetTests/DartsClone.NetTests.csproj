@@ -16,13 +16,9 @@
       <IncludeAssets>runtime; build; native; contentfiles; analyzers; buildtransitive</IncludeAssets>
     </PackageReference>
   </ItemGroup>
-  
-  <ItemGroup>
-    <ProjectReference Include="..\DartsClone.Net\DartsClone.Net.csproj" />
-  </ItemGroup>
 
   <ItemGroup>
-    <Using Include="Microsoft.VisualStudio.TestTools.UnitTesting" />
+    <ProjectReference Include="..\DartsClone.Net\DartsClone.Net.csproj" />
   </ItemGroup>
 
 </Project>

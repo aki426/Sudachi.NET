@@ -42,7 +42,7 @@ namespace DartsClone.Net
         }
 
         /// <summary>integer array as structures of Darts-clone.</summary>
-        public Memory<int> Array { get; private set; }
+        public Memory<int> array { get; private set; }
 
         // NOTE: ＜当面の実装方針について＞
         // JAVAではByteBufferが全ての基本単位であるらしく、IntArrayはByteBuffer.asIntBuffferから作成している。
@@ -56,7 +56,7 @@ namespace DartsClone.Net
         // Sudachi.NETの実装も含めて不要と判断した時点でMemory<byte>を除去するものとする。
 
         /// <summary>the structures of Darts-clone as an array of byte</summary>
-        public Memory<byte> ByteArray { get; private set; }
+        public Memory<byte> buffer { get; private set; }
 
         /// <summary>
         /// the number of the internal elements in the structures of Darts-clone.
@@ -66,7 +66,7 @@ namespace DartsClone.Net
         public int Size { get; private set; } // number of elements
 
         /// <summary>the size of the storage used in the structures of Darts-clone.</summary>
-        public int TotalSize => Array.Length * sizeof(int); // JAVAでは4 * size
+        public int TotalSize => array.Length * sizeof(int); // JAVAでは4 * size
 
         /// <summary>
         /// Set an integer array as structures of Darts-clone.
@@ -75,14 +75,14 @@ namespace DartsClone.Net
         /// <param name="size">The number of elements</param>
         public void SetArray(Memory<int> array, int size)
         {
-            this.Array = array;
+            this.array = array;
             this.Size = size;
         }
 
         /// <summary>Removes all structures.</summary>
         public void Clear()
         {
-            ByteArray = Memory<byte>.Empty;
+            buffer = Memory<byte>.Empty;
             Size = 0;
         }
 
@@ -100,37 +100,37 @@ namespace DartsClone.Net
             var keySet = new KeySet(keys, values);
             var builder = new DoubleArrayBuilder(progressFunction);
             builder.Build(keySet);
-            ByteArray = new Memory<byte>(builder.Copy());
+            buffer = new Memory<byte>(builder.Copy());
             // TODO: メモリ領域を共有するかしないか、所有権を移譲するかしないかの違いがある。
             // このままで良いか注意。
-            Array = new Memory<int>(MemoryMarshal.Cast<byte, int>(ByteArray.Span).ToArray());
-            Size = Array.Length;
+            array = new Memory<int>(MemoryMarshal.Cast<byte, int>(buffer.Span).ToArray());
+            Size = array.Length;
         }
 
-        /// <summary>
-        /// Reads the trie from the file.
-        /// </summary>
-        /// <param name="inputFile">The file to read</param>
-        /// <param name="position">The offset to read</param>
-        /// <param name="totalSize">The size to read</param>
-        /// <exception cref="IOException">If reading a file is failed</exception>
-        public void Open(FileStream inputFile, long position, long totalSize)
-        {
-            if (position < 0)
-            {
-                position = 0;
-            }
-            if (totalSize <= 0)
-            {
-                totalSize = inputFile.Length;
-            }
+        ///// <summary>
+        ///// Reads the trie from the file.
+        ///// </summary>
+        ///// <param name="inputFile">The file to read</param>
+        ///// <param name="position">The offset to read</param>
+        ///// <param name="totalSize">The size to read</param>
+        ///// <exception cref="IOException">If reading a file is failed</exception>
+        //public void Open(FileStream inputFile, long position, long totalSize)
+        //{
+        //    if (position < 0)
+        //    {
+        //        position = 0;
+        //    }
+        //    if (totalSize <= 0)
+        //    {
+        //        totalSize = inputFile.Length;
+        //    }
 
-            ByteArray = new Memory<byte>(new byte[totalSize]);
-            inputFile.Position = position;
-            inputFile.Read(ByteArray.Span);
-            Array = ByteArray.Cast<byte, int>();
-            Size = Array.Length;
-        }
+        //    ByteArray = new Memory<byte>(new byte[totalSize]);
+        //    inputFile.Position = position;
+        //    inputFile.Read(ByteArray.Span);
+        //    Array = ByteArray.Cast<byte, int>();
+        //    Size = Array.Length;
+        //}
 
         public void Open(FileInfo fileInfo, long position, long totalSize)
         {
@@ -161,19 +161,17 @@ namespace DartsClone.Net
                 using (MemoryMappedViewAccessor accessor = mmf.CreateViewAccessor(position, totalSize, MemoryMappedFileAccess.Read))
                 {
                     var buffer = new byte[totalSize];
-                    accessor.ReadArray(0, buffer, 0, buffer.Length);
-                    ByteArray = new Memory<byte>(buffer);
+                    accessor.ReadArray<byte>(0, buffer, 0, buffer.Length);
+                    this.buffer = new Memory<byte>(buffer);
 
-                    if (ByteArray.Length % sizeof(int) != 0)
+                    if (this.buffer.Length % sizeof(int) != 0)
                     {
                         throw new ArgumentException("Buffer length must be a multiple of sizeof(int).");
                     }
 
-                    var intArray = new Memory<int>((int[])buffer);
-
-                    Span<int> span = MemoryMarshal.Cast<byte, int>(ByteArray.Span);
-                    var intArray = new int[buffer.Length / sizeof(int)];
-                    Buffer.BlockCopy(buffer, 0, intArray, 0, buffer.Length);
+                    var intBuffer = new int[this.buffer.Length / sizeof(int)];
+                    accessor.ReadArray<int>(0, intBuffer, 0, intBuffer.Length);
+                    var intArray = new Memory<int>(intBuffer);
 
                     int size = intArray.Length;
                 }
@@ -187,7 +185,7 @@ namespace DartsClone.Net
         /// <exception cref="IOException">If writing a file is failed</exception>
         public void Save(FileStream outputFile)
         {
-            outputFile.Write(buffer.Span);
+            outputFile.Write(buffer.ToArray(), 0, buffer.Length);
         }
 
         /// <summary>
@@ -322,6 +320,14 @@ namespace DartsClone.Net
             return new TraverseResult(Value(unit), length, nodePos);
         }
 
+        private bool HasLeaf(int unit) => (unit >> 8 & 1) == 1;
+
+        private int Value(int unit) => unit & 0x7fffffff;
+
+        private int Label(int unit) => unit & -2147483393;
+
+        private int Offset(int unit) => unit >> 10 << ((unit & 512) >> 6);
+
         /// <summary>
         /// Returns the value to which the specified key is mapped by traversing the trie
         /// from the specified node.
@@ -420,13 +426,5 @@ namespace DartsClone.Net
                 return null;
             }
         }
-
-        private static bool HasLeaf(int unit) => (unit >> 8 & 1) == 1;
-
-        private static int Value(int unit) => unit & 0x7fffffff;
-
-        private static int Label(int unit) => unit & -2147483393;
-
-        private static int Offset(int unit) => unit >> 10 << ((unit & 512) >> 6);
     }
 }
