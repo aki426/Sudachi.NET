@@ -1,7 +1,10 @@
-﻿using System.Runtime.InteropServices;
+﻿using System.IO.MemoryMappedFiles;
+using System.IO;
+using System.Runtime.InteropServices;
 using FluentAssertions;
 using Xunit;
 using Xunit.Abstractions;
+using System.Diagnostics;
 
 namespace DartsClone.NetTests
 {
@@ -142,6 +145,67 @@ namespace DartsClone.NetTests
             byteMemoryLoaded.Span[4].Should().Be(15);
 
             #endregion ファイルをメモリに読み込む - 配列に変換する方法。
+        }
+
+        /// <summary>
+        /// Sudachi-Dictの読み込みテスト。
+        /// NOTE: 結果としては以下のとおりで、ファイルとメモリを同期させないのであれば普通に読み込んだ方が早い。
+        /// * MemoryMappedFile: 315ms
+        /// * File.ReadAllBytes: 143ms
+        /// </summary>
+        [Fact]
+        public void LoadDict()
+        {
+            var filePath = Path.Combine(Environment.CurrentDirectory, "DATA", "system_core.dic");
+            long totalSize = new FileInfo(filePath).Length;
+
+            Memory<byte> byteMemory;
+
+            Stopwatch sw = new Stopwatch();
+
+            sw.Start();
+            // MemoryMappedFile, MemoryMappedViewAccessorを経由して読み取り専用でファイルを読み込む。
+            using (MemoryMappedFile mmf = MemoryMappedFile.CreateFromFile(filePath, FileMode.Open, null, totalSize, MemoryMappedFileAccess.Read))
+            {
+                using (MemoryMappedViewAccessor accessor = mmf.CreateViewAccessor(0, totalSize, MemoryMappedFileAccess.Read))
+                {
+                    var buffer = new byte[totalSize];
+                    accessor.ReadArray<byte>(0, buffer, 0, buffer.Length);
+                    byteMemory = new Memory<byte>(buffer);
+
+                    if (byteMemory.Length % sizeof(int) != 0)
+                    {
+                        throw new ArgumentException("Buffer length must be a multiple of sizeof(int).");
+                    }
+
+                    // Span<int>も取得可能。
+                    MemoryMarshal.Cast<byte, int>(byteMemory.Span);
+                }
+            }
+            sw.Stop();
+            _output.WriteLine($"MemoryMappedFile: {sw.ElapsedMilliseconds}ms");
+
+            // NOTE: Memory<byte>に書き込むとファイルにも反映されるような関連付けも可能で、次のとおり。
+            //using (MemoryMappedFile mmf = MemoryMappedFile.CreateFromFile(filePath, FileMode.Open, null, fileSize, MemoryMappedFileAccess.ReadWrite))
+            //{
+            //    using (MemoryMappedViewAccessor accessor = mmf.CreateViewAccessor(0, fileSize, MemoryMappedFileAccess.ReadWrite))
+            //    {
+            //        // ...
+            //    }
+            //}
+            // とはいえ、Sudachi-Dictは読み込み専用で十分なので、この機能は必要ない。
+            // Dartsとして必要かどうかは要検証だが、そのような応用的な実装が必要になった場合は別途対応で良いだろう。
+
+            sw.Restart();
+            // もっとずっと単純な方法。
+            // ファイルからバイト配列を読み込む
+            byte[] bytesLoaded = File.ReadAllBytes(filePath);
+            // バイト配列をMemory<byte>に変換
+            byteMemory = new Memory<byte>(bytesLoaded);
+            // Span<int>も取得可能。
+            _ = MemoryMarshal.Cast<byte, int>(byteMemory.Span);
+            sw.Stop();
+            _output.WriteLine($"File.ReadAllBytes: {sw.ElapsedMilliseconds}ms");
         }
     }
 }

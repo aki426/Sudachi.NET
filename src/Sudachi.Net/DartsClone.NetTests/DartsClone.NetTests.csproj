@@ -21,4 +21,14 @@
     <ProjectReference Include="..\DartsClone.Net\DartsClone.Net.csproj" />
   </ItemGroup>
 
+  <ItemGroup>
+    <Folder Include="DATA\" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <None Update="DATA\system_core.dic">
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+    </None>
+  </ItemGroup>
+
 </Project>
