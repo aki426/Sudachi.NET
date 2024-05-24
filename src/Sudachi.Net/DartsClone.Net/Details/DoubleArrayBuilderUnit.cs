@@ -1,5 +1,9 @@
 ﻿namespace DartsClone.Net.Details
 {
+    /// <summary>
+    /// DoubleArrayのBuild時ユニット1つ分を表すクラス。
+    /// NOTE: 便宜上状態変更可能なクラスとした。
+    /// </summary>
     internal class DoubleArrayBuilderUnit
     {
         public int Unit;

@@ -1,8 +1,5 @@
 ﻿using System;
-using System.Buffers;
-using System.Collections;
 using System.Collections.Generic;
-using System.Drawing;
 using System.IO;
 using System.IO.MemoryMappedFiles;
 using System.Runtime.InteropServices;
@@ -41,71 +38,95 @@ namespace DartsClone.Net
             }
         }
 
-        /// <summary>integer array as structures of Darts-clone.</summary>
-        public Memory<int> array { get; private set; }
-
-        // NOTE: ＜当面の実装方針について＞
-        // JAVAではByteBufferが全ての基本単位であるらしく、IntArrayはByteBuffer.asIntBuffferから作成している。
+        // NOTE: ＜C#版の実装方針＞
+        // DARTSの計算ロジックで用いるのはIntのBuffer（JAVA）でありintのSpan（C#）である。
+        // データの実体としては、JAVAではByteBufferが全ての基本単位となっており、
+        // ファイルのIOはByteBufferで行いIntArrayはByteBuffer.asIntBuffferから作成している。
         // これによって実体はByteBufferであるが実体を共有するViewとしてIntのBufferを実現している。
-        // C#でもこれと同じようにByte型とInt型のインターフェースを持ちながら実体は同じメモリを共有する
-        // Memory<byte>とMemory<int>を実装したい。
-        // しかしJAVA版のコードを見ると実用上ByteBufferはIOにのみ使っているだけで、DARTSの計算ロジックで用いるのは
-        // IntBufferの方だけである。
-        // つまり本質的に必要なのはIntBufferでありMemory<int>なので、DARTSの原単位はInt（4Byte）ということになる。
-        // C#版では一旦インターフェースとしてのMemory<byte>のも残すが、IOから内部ロジックまでMemory<int>側に寄せておき、
-        // Sudachi.NETの実装も含めて不要と判断した時点でMemory<byte>を除去するものとする。
+        // C#でもファイルのIOはbyte[]であるし、Memory<byte>.SpanからMemoryMarshallでSpan<int>を作成できるため、
+        // Memory<byte>を基本単位としてViewとしてSpan<int>を使用する。
 
         /// <summary>the structures of Darts-clone as an array of byte</summary>
-        public Memory<byte> buffer { get; private set; }
+        private Memory<byte> buffer;
+
+        /// <summary>integer array as structures of Darts-clone.</summary>
+        // public Memory<int> array { get; private set; }
+        private Span<int> array => MemoryMarshal.Cast<byte, int>(buffer.Span);
+
+        /// <summary>the structures of Darts-clone as an array of byte</summary>
+        public ReadOnlyMemory<byte> ByteBuffer => buffer;
+
+        /// <summary>Integer span as structures of Darts-clone.</summary>
+        public ReadOnlySpan<int> IntBuffer => array; // MemoryMarshal.Cast<byte, int>(buffer.Span);
 
         /// <summary>
         /// the number of the internal elements in the structures of Darts-clone.
         ///
         /// It is not the number of keys in the trie.
         /// </summary>
-        public int Size { get; private set; } // number of elements
+        public int Size => IntBuffer.Length; // { get; private set; } // number of elements
 
         /// <summary>the size of the storage used in the structures of Darts-clone.</summary>
         public int TotalSize => array.Length * sizeof(int); // JAVAでは4 * size
 
         /// <summary>
-        /// Set an integer array as structures of Darts-clone.
+        /// Initializes a new instance of the <see cref="DoubleArray"/> class.
         /// </summary>
-        /// <param name="array">The structures of Darts-clone</param>
-        /// <param name="size">The number of elements</param>
-        public void SetArray(Memory<int> array, int size)
+        /// <param name="buffer">The buffer.</param>
+        /// <param name="size">The size.</param>
+        public DoubleArray(Memory<byte> buffer)
         {
-            this.array = array;
-            this.Size = size;
+            // NOTE: 何が入って来るかわからないので、念のためbyte列の長さがintへ変換可能な長さかチェックする。
+            if (buffer.Length % sizeof(int) != 0)
+            {
+                throw new ArgumentException("Buffer length must be a multiple of sizeof(int).");
+            }
+
+            this.buffer = buffer;
         }
+
+        ///// <summary>
+        ///// Set an integer array as structures of Darts-clone.
+        ///// </summary>
+        ///// <param name="array">The structures of Darts-clone</param>
+        ///// <param name="size">The number of elements</param>
+        //public void SetArray(Memory<int> array, int size)
+        //{
+        //    this.array = array;
+        //    this.Size = size;
+        //}
 
         /// <summary>Removes all structures.</summary>
         public void Clear()
         {
+            // TODO: 機能としてbuffer.Span.Clear();で代替可能か検討する。
             buffer = Memory<byte>.Empty;
-            Size = 0;
+            //Size = 0;
         }
 
-        /// <summary>
-        /// Builds the trie from the pairs of key and value.
-        ///
-        /// When a pair of key and value is added to trie, <paramref name="progressFunction"/> is
-        /// called with the number of added pairs and the total of pairs.
-        /// </summary>
-        /// <param name="keys">Key with which the specified value is to be associated</param>
-        /// <param name="values">Value to be associated with the specified key</param>
-        /// <param name="progressFunction">The call for showing the progress of building</param>
-        public void Build(byte[][] keys, int[] values, Action<int, int> progressFunction)
-        {
-            var keySet = new KeySet(keys, values);
-            var builder = new DoubleArrayBuilder(progressFunction);
-            builder.Build(keySet);
-            buffer = new Memory<byte>(builder.Copy());
-            // TODO: メモリ領域を共有するかしないか、所有権を移譲するかしないかの違いがある。
-            // このままで良いか注意。
-            array = new Memory<int>(MemoryMarshal.Cast<byte, int>(buffer.Span).ToArray());
-            Size = array.Length;
-        }
+        // NOTE: DoubleArrayBuilderがいるのにBuildメソッドをDoubleArrayが持つのは不合理なので、
+        // C#版ではBuildメソッドはDoubleArrayBuilderへ移行。
+
+        ///// <summary>
+        ///// Builds the trie from the pairs of key and value.
+        /////
+        ///// When a pair of key and value is added to trie, <paramref name="progressFunction"/> is
+        ///// called with the number of added pairs and the total of pairs.
+        ///// </summary>
+        ///// <param name="keys">Key with which the specified value is to be associated</param>
+        ///// <param name="values">Value to be associated with the specified key</param>
+        ///// <param name="progressFunction">The call for showing the progress of building</param>
+        //public void Build(byte[][] keys, int[] values, Action<int, int> progressFunction)
+        //{
+        //    var keySet = new KeySet(keys, values);
+        //    var builder = new DoubleArrayBuilder(progressFunction);
+        //    builder.Build(keySet);
+        //    buffer = new Memory<byte>(builder.Copy());
+        //    // TODO: メモリ領域を共有するかしないか、所有権を移譲するかしないかの違いがある。
+        //    // このままで良いか注意。
+        //    array = new Memory<int>(MemoryMarshal.Cast<byte, int>(buffer.Span).ToArray());
+        //    Size = array.Length;
+        //}
 
         ///// <summary>
         ///// Reads the trie from the file.
@@ -132,6 +153,12 @@ namespace DartsClone.Net
         //    Size = Array.Length;
         //}
 
+        /// <summary>
+        /// Reads the trie from the file.
+        /// </summary>
+        /// <param name="fileInfo">The file info.</param>
+        /// <param name="position">The position.</param>
+        /// <param name="totalSize">The total size.</param>
         public void Open(FileInfo fileInfo, long position, long totalSize)
         {
             if (position < 0)
@@ -176,6 +203,18 @@ namespace DartsClone.Net
                     int size = intArray.Length;
                 }
             }
+        }
+
+        /// <summary>
+        /// 最も単純にファイルからDoubleArrayを読み込む。
+        /// </summary>
+        /// <param name="fileInfo">The file info.</param>
+        /// <returns>A DoubleArray.</returns>
+        public static DoubleArray Load(FileInfo fileInfo)
+        {
+            // MemoryMappedFileを使うよりももっとずっと単純な方法。
+            byte[] bytesLoaded = File.ReadAllBytes(fileInfo.FullName);
+            return new DoubleArray(new Memory<byte>(bytesLoaded));
         }
 
         /// <summary>

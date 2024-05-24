@@ -1,5 +1,7 @@
 ﻿using System;
 using System.Collections.Generic;
+using System.Drawing;
+using System.Runtime.InteropServices;
 
 namespace DartsClone.Net.Details
 {
@@ -32,6 +34,15 @@ namespace DartsClone.Net.Details
             this.progressFunction = progressFunction;
         }
 
+        public static DoubleArray Build(byte[][] keys, int[] values, Action<int, int> progressFunction)
+        {
+            var keySet = new KeySet(keys, values);
+            var builder = new DoubleArrayBuilder(progressFunction);
+            builder.Build(keySet);
+
+            return new DoubleArray(new Memory<byte>(builder.Copy()));
+        }
+
         public void Build(KeySet keySet)
         {
             if (keySet.HasValues)
@@ -47,11 +58,19 @@ namespace DartsClone.Net.Details
             }
         }
 
+        /// <summary>
+        /// DoubleArrayBuilderUnitからbyte[]に変換する。
+        /// NOTE: DoubleArrayBuilderUnitの内部表現はint型であるため、BitConverterを使ってbyte[]に変換する。
+        /// TODO: DoubleArrayBuilderUnitのリスト（実体はintのリスト）->byte[]->Memory{byte}に変換する処理は、
+        /// 直接DoubleArrayBuilderUnitのリスト（実体はintのリスト）->Memory{byte}に変換できそう。
+        /// パフォーマンスの観点で必要そうなら今後実装する。
+        /// </summary>
+        /// <returns>An array of byte.</returns>
         public byte[] Copy()
         {
             var buffer = new byte[units.Count * 4];
             var index = 0;
-            foreach (var u in units)
+            foreach (DoubleArrayBuilderUnit u in units)
             {
                 BitConverter.GetBytes(u.Unit).CopyTo(buffer, index);
                 index += 4;
