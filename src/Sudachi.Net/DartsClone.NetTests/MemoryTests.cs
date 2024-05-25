@@ -1,10 +1,9 @@
-﻿using System.IO.MemoryMappedFiles;
-using System.IO;
+﻿using System.Diagnostics;
+using System.IO.MemoryMappedFiles;
 using System.Runtime.InteropServices;
 using FluentAssertions;
 using Xunit;
 using Xunit.Abstractions;
-using System.Diagnostics;
 
 namespace DartsClone.NetTests
 {

@@ -1,4 +1,5 @@
-﻿using DartsClone.NetTests;
+﻿using DartsClone.Net.Details;
+using DartsClone.NetTests;
 using FluentAssertions;
 using Xunit;
 
@@ -56,8 +57,9 @@ namespace DartsClone.Net.Tests
         [Fact]
         public void BuildWithoutValue()
         {
-            var dic = new DoubleArray();
-            dic.Build(_keys, null, null);
+            //var dic = new DoubleArray(new Memory<byte>(null));
+            var dic = DoubleArrayBuilder.Build(_keys, null, null);
+            //dic.Build(_keys, null, null);
             TestDic(dic);
         }
     }

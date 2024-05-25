@@ -1,18 +1,15 @@
 ﻿using System;
 using System.Collections.Generic;
-using System.Drawing;
-using System.Runtime.InteropServices;
 
 namespace DartsClone.Net.Details
 {
     public class DoubleArrayBuilder
     {
-        private static readonly int BLOCK_SIZE = 256;
-        private static readonly int NUM_EXTRA_BLOCKS = 16;
-        private static readonly int NUM_EXTRAS = BLOCK_SIZE * NUM_EXTRA_BLOCKS;
-
-        private static readonly int UPPER_MASK = 0xFF << 21; //0x1FE_0000_0000
-        private static readonly int LOWER_MASK = 0xFF;
+        public static readonly int BLOCK_SIZE = 256;
+        public static readonly int NUM_EXTRA_BLOCKS = 16;
+        public static readonly int NUM_EXTRAS = BLOCK_SIZE * NUM_EXTRA_BLOCKS;
+        public static readonly int UPPER_MASK = 0xFF << 21; //0x1FE_0000_0000
+        public static readonly int LOWER_MASK = 0xFF;
 
         private class DoubleArrayBuilderExtraUnit
         {

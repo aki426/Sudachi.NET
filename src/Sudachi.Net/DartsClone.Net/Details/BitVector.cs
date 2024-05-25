@@ -14,27 +14,23 @@ namespace DartsClone.Net.Details
         public BitVector()
         { }
 
-        public bool Get(int id)
-        {
-            return ((uint)units[id / 32] >> id % 32 & 1) == 1;
-        }
+        public bool Get(int id) => (units[id / UNIT_SIZE] >>> (id % UNIT_SIZE) & 1) == 1;
 
         public int Rank(int id)
         {
-            int unitId = id / 32;
-            // JAVA版では-1 >>> を使用していたが、C#10では>>>は存在しないため、代わりに0xFFFFFFFFを使用している。
-            return ranks[unitId] + PopCount((int)(units[unitId] & (0xFFFFFFFF >> (32 - (id % 32) - 1))));
+            int unitId = id / UNIT_SIZE;
+            return ranks[unitId] + PopCount(units[unitId] & (~0 >>> (UNIT_SIZE - (id % UNIT_SIZE) - 1)));
         }
 
         public void Set(int id, bool bit)
         {
             if (bit)
             {
-                units[id / 32] |= 1 << (id % 32);
+                units[id / UNIT_SIZE] |= 1 << (id % UNIT_SIZE);
             }
             else
             {
-                units[id / 32] &= ~(1 << (id % 32));
+                units[id / UNIT_SIZE] &= ~(1 << (id % UNIT_SIZE));
             }
         }
 
@@ -42,7 +38,7 @@ namespace DartsClone.Net.Details
 
         public void Append()
         {
-            if (Size % 32 == 0)
+            if (Size % UNIT_SIZE == 0)
             {
                 units.Add(0);
             }
@@ -70,14 +66,12 @@ namespace DartsClone.Net.Details
 
         private int PopCount(int unit)
         {
-            // JAVA版の>>>演算子を>>へ置き換えたのでint -> uint -> intのキャストで対応。
-            unit = (int)((uint)(unit & -1431655766) >> 1) + (unit & 1431655765);
-            unit = (int)((uint)(unit & -858993460) >> 2) + (unit & 858993459);
-            unit = (int)((uint)unit >> 4) + (unit & 252645135);
-            unit += (int)(uint)unit >> 8;
-            unit += (int)(uint)unit >> 16;
-
-            return unit & 255;
+            unit = (int)(((unit & 0xAAAAAAAA) >>> 1) + (unit & 0x55555555));
+            unit = (int)(((unit & 0xCCCCCCCC) >>> 2) + (unit & 0x33333333));
+            unit = ((unit >>> 4) + unit) & 0x0F0F0F0F;
+            unit += unit >>> 8;
+            unit += unit >>> 16;
+            return unit & 0xFF;
         }
     }
 }

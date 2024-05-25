@@ -40,11 +40,11 @@ namespace DartsClone.Net.Details
         {
             public int unit;
 
-            public int Child() => (int)((uint)unit >> 2);
+            public int Child() => unit >>> 2;
 
             public bool HasSibling() => (unit & 1) == 1;
 
-            public int Value() => (int)((uint)unit >> 1);
+            public int Value() => unit >>> 1;
 
             public bool IsState() => (unit & 2) == 2;
         }

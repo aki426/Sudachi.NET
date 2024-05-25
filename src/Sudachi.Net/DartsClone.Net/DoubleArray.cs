@@ -3,7 +3,6 @@ using System.Collections.Generic;
 using System.IO;
 using System.IO.MemoryMappedFiles;
 using System.Runtime.InteropServices;
-using DartsClone.Net.Details;
 
 namespace DartsClone.Net
 {
@@ -15,6 +14,37 @@ namespace DartsClone.Net
     /// </summary>
     public class DoubleArray
     {
+        /// <summary>
+        /// Unitの下から9ビット目が1＝Leafを持つ場合にtrueを返す。
+        /// </summary>
+        /// <param name="unit">The unit.</param>
+        /// <returns>A bool.</returns>
+        public static bool HasLeaf(int unit) => (unit >>> 8 & 1) == 1;
+
+        /// <summary>
+        /// UnitのValue部を取得する。32bit intの最上位ビットを除いた31ビットを返す。
+        /// 0x7fffffff = (1 << 31) - 1
+        /// </summary>
+        /// <param name="unit">The unit.</param>
+        /// <returns>An int.</returns>
+        public static int Value(int unit) => unit & 0x7fffffff;
+
+        /// <summary>
+        /// UnitのLabel部を取得する。
+        /// (1 << 31) | 0xFF = 0x800000FF = -2147483393:
+        /// </summary>
+        /// <param name="unit">The unit.</param>
+        /// <returns>An int.</returns>
+        public static int Label(int unit) => unit & ((1 << 31) | 0xFF);
+
+        /// <summary>
+        /// UnitのOffset部を取得する。
+        /// 下から10ビット捨てる。10ビット目が1なら8、0なら0ビット、切り捨てた10ビットから11ビット目以上を左シフトする。
+        /// </summary>
+        /// <param name="unit">The unit.</param>
+        /// <returns>An int.</returns>
+        public static int Offset(int unit) => (unit >>> 10) << ((unit & (1 << 9)) >>> 6);
+
         /// <summary>
         /// The result of a traverse operation.
         ///
@@ -69,6 +99,8 @@ namespace DartsClone.Net
         /// <summary>the size of the storage used in the structures of Darts-clone.</summary>
         public int TotalSize => array.Length * sizeof(int); // JAVAでは4 * size
 
+        // NOTE: 出来るだけDIかつImmutableなコードにしたいため、コンストラクタでMemory<byte>を渡した後は変更しない。
+
         /// <summary>
         /// Initializes a new instance of the <see cref="DoubleArray"/> class.
         /// </summary>
@@ -85,17 +117,6 @@ namespace DartsClone.Net
             this.buffer = buffer;
         }
 
-        ///// <summary>
-        ///// Set an integer array as structures of Darts-clone.
-        ///// </summary>
-        ///// <param name="array">The structures of Darts-clone</param>
-        ///// <param name="size">The number of elements</param>
-        //public void SetArray(Memory<int> array, int size)
-        //{
-        //    this.array = array;
-        //    this.Size = size;
-        //}
-
         /// <summary>Removes all structures.</summary>
         public void Clear()
         {
@@ -106,52 +127,6 @@ namespace DartsClone.Net
 
         // NOTE: DoubleArrayBuilderがいるのにBuildメソッドをDoubleArrayが持つのは不合理なので、
         // C#版ではBuildメソッドはDoubleArrayBuilderへ移行。
-
-        ///// <summary>
-        ///// Builds the trie from the pairs of key and value.
-        /////
-        ///// When a pair of key and value is added to trie, <paramref name="progressFunction"/> is
-        ///// called with the number of added pairs and the total of pairs.
-        ///// </summary>
-        ///// <param name="keys">Key with which the specified value is to be associated</param>
-        ///// <param name="values">Value to be associated with the specified key</param>
-        ///// <param name="progressFunction">The call for showing the progress of building</param>
-        //public void Build(byte[][] keys, int[] values, Action<int, int> progressFunction)
-        //{
-        //    var keySet = new KeySet(keys, values);
-        //    var builder = new DoubleArrayBuilder(progressFunction);
-        //    builder.Build(keySet);
-        //    buffer = new Memory<byte>(builder.Copy());
-        //    // TODO: メモリ領域を共有するかしないか、所有権を移譲するかしないかの違いがある。
-        //    // このままで良いか注意。
-        //    array = new Memory<int>(MemoryMarshal.Cast<byte, int>(buffer.Span).ToArray());
-        //    Size = array.Length;
-        //}
-
-        ///// <summary>
-        ///// Reads the trie from the file.
-        ///// </summary>
-        ///// <param name="inputFile">The file to read</param>
-        ///// <param name="position">The offset to read</param>
-        ///// <param name="totalSize">The size to read</param>
-        ///// <exception cref="IOException">If reading a file is failed</exception>
-        //public void Open(FileStream inputFile, long position, long totalSize)
-        //{
-        //    if (position < 0)
-        //    {
-        //        position = 0;
-        //    }
-        //    if (totalSize <= 0)
-        //    {
-        //        totalSize = inputFile.Length;
-        //    }
-
-        //    ByteArray = new Memory<byte>(new byte[totalSize]);
-        //    inputFile.Position = position;
-        //    inputFile.Read(ByteArray.Span);
-        //    Array = ByteArray.Cast<byte, int>();
-        //    Size = Array.Length;
-        //}
 
         /// <summary>
         /// Reads the trie from the file.
@@ -174,39 +149,25 @@ namespace DartsClone.Net
             // MemoryMappedFile => MemoryMappedViewAccessor => byte[] => Memory<byte>となる。
             // よって引数としてFileInfoを渡せば十分ということになる。
 
-            // NOTE: より単純には次の方法で良いはずだが、positionとtotalSizeの指定という汎用性のために
-            // MemoryMappedViewAccessorを用いている。
-            //long fileSize = fileInfo.Length;
-            //byte[] byteArray = File.ReadAllBytes(fileInfo.FullName);
-            //Memory<byte> memory = new Memory<byte>(byteArray);
-
-            // NOTE: 辞書データのロードの仕方として、MemoryではなくアプリケーションスタックにデータをロードするSpanを使う方法もある。
-            // ただし、SudaciDictはFullの場合400MBにも及ぶためスタックオーバーフローを引き起こす可能性があり、Memoryを選択した。
-
             using (MemoryMappedFile mmf = MemoryMappedFile.CreateFromFile(fileInfo.FullName, FileMode.Open, null, totalSize, MemoryMappedFileAccess.Read))
             {
                 using (MemoryMappedViewAccessor accessor = mmf.CreateViewAccessor(position, totalSize, MemoryMappedFileAccess.Read))
                 {
-                    var buffer = new byte[totalSize];
-                    accessor.ReadArray<byte>(0, buffer, 0, buffer.Length);
-                    this.buffer = new Memory<byte>(buffer);
+                    var byteArray = new byte[totalSize];
+                    accessor.ReadArray<byte>(0, byteArray, 0, byteArray.Length);
+                    this.buffer = new Memory<byte>(byteArray);
 
                     if (this.buffer.Length % sizeof(int) != 0)
                     {
                         throw new ArgumentException("Buffer length must be a multiple of sizeof(int).");
                     }
-
-                    var intBuffer = new int[this.buffer.Length / sizeof(int)];
-                    accessor.ReadArray<int>(0, intBuffer, 0, intBuffer.Length);
-                    var intArray = new Memory<int>(intBuffer);
-
-                    int size = intArray.Length;
                 }
             }
         }
 
         /// <summary>
         /// 最も単純にファイルからDoubleArrayを読み込む。
+        /// NOTE: 読み取りのオフセットとサイズは指定できない。まるごと全部読み込む。
         /// </summary>
         /// <param name="fileInfo">The file info.</param>
         /// <returns>A DoubleArray.</returns>
@@ -228,22 +189,31 @@ namespace DartsClone.Net
         }
 
         /// <summary>
+        /// Writes this trie to the file.
+        /// </summary>
+        /// <param name="fileInfo">The file info.</param>
+        public void Save(FileInfo fileInfo)
+        {
+            File.WriteAllBytes(fileInfo.FullName, buffer.ToArray());
+        }
+
+        /// <summary>
         /// Returns the value to which the specified key is mapped, or a negative integer
         /// if this trie contains no mapping for the key.
         /// </summary>
         /// <param name="key">The key whose associated value is to be returned</param>
         /// <returns>The array of integer includes the value to which the specified key is
         /// mapped and the length of the key</returns>
-        public int[] ExactMatchSearch(byte[] key)
+        public int[] ExactMatchSearch(params byte[] key)
         {
             int[] result = new int[] { -1, 0 };
             int nodePos = 0;
-            int unit = array.Span[nodePos];
+            int unit = array[nodePos];
 
             foreach (byte k in key)
             {
                 nodePos ^= Offset(unit) ^ k;
-                unit = array.Span[nodePos];
+                unit = array[nodePos];
                 if (Label(unit) != k)
                 {
                     return result;
@@ -253,7 +223,7 @@ namespace DartsClone.Net
             {
                 return result;
             }
-            unit = array.Span[nodePos ^ Offset(unit)];
+            unit = array[nodePos ^ Offset(unit)];
             result[0] = Value(unit);
             result[1] = key.Length;
             return result;
@@ -275,13 +245,13 @@ namespace DartsClone.Net
             var result = new List<int[]>();
 
             int nodePos = 0;
-            int unit = array.Span[nodePos];
+            int unit = array[nodePos];
             nodePos ^= Offset(unit);
             for (int i = offset; i < key.Length; i++)
             {
                 byte k = key[i];
                 nodePos ^= k;
-                unit = array.Span[nodePos];
+                unit = array[nodePos];
                 if (Label(unit) != k)
                 {
                     return result;
@@ -290,7 +260,7 @@ namespace DartsClone.Net
                 nodePos ^= Offset(unit);
                 if (HasLeaf(unit) && result.Count < maxNumResult)
                 {
-                    int[] r = new int[] { Value(array.Span[nodePos]), i + 1 };
+                    int[] r = new int[] { Value(array[nodePos]), i + 1 };
                     result.Add(r);
                 }
             }
@@ -338,13 +308,13 @@ namespace DartsClone.Net
         {
             int nodePos = nodePosition;
             int id = nodePos;
-            int unit = array.Span[id];
+            int unit = array[id];
 
             for (int i = offset; i < length; i++)
             {
                 byte k = key[i];
                 id ^= Offset(unit) ^ k;
-                unit = array.Span[id];
+                unit = array[id];
                 if (Label(unit) != k)
                 {
                     return new TraverseResult(-2, i, nodePos);
@@ -355,17 +325,9 @@ namespace DartsClone.Net
             {
                 return new TraverseResult(-1, length, nodePos);
             }
-            unit = array.Span[nodePos ^ Offset(unit)];
+            unit = array[nodePos ^ Offset(unit)];
             return new TraverseResult(Value(unit), length, nodePos);
         }
-
-        private bool HasLeaf(int unit) => (unit >> 8 & 1) == 1;
-
-        private int Value(int unit) => unit & 0x7fffffff;
-
-        private int Label(int unit) => unit & -2147483393;
-
-        private int Offset(int unit) => unit >> 10 << ((unit & 512) >> 6);
 
         /// <summary>
         /// Returns the value to which the specified key is mapped by traversing the trie
@@ -403,8 +365,8 @@ namespace DartsClone.Net
                 this.offset = offset;
                 this.doubleArray = doubleArray;
                 nodePos = 0;
-                int unit = doubleArray.array.Span[nodePos];
-                nodePos ^= doubleArray.Offset(unit);
+                int unit = doubleArray.array[nodePos];
+                nodePos ^= Offset(unit);
                 next = null;
             }
 
@@ -435,6 +397,7 @@ namespace DartsClone.Net
 
             public void Dispose()
             {
+                // NOTE: Memory<byte>はマネージドリソースなのでGC任せでよくDispose不要。
             }
 
             public void Reset()
@@ -448,17 +411,17 @@ namespace DartsClone.Net
                 {
                     byte k = key[offset];
                     nodePos ^= k;
-                    int unit = doubleArray.array.Span[nodePos];
-                    if (doubleArray.Label(unit) != k)
+                    int unit = doubleArray.array[nodePos];
+                    if (Label(unit) != k)
                     {
                         offset = key.Length; // no more loop
                         return null;
                     }
 
-                    nodePos ^= doubleArray.Offset(unit);
-                    if (doubleArray.HasLeaf(unit))
+                    nodePos ^= Offset(unit);
+                    if (HasLeaf(unit))
                     {
-                        int[] r = new int[] { doubleArray.Value(doubleArray.array.Span[nodePos]), ++offset };
+                        int[] r = new int[] { Value(doubleArray.array[nodePos]), ++offset };
                         return r;
                     }
                 }
