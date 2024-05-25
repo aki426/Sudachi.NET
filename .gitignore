@@ -396,3 +396,4 @@ FodyWeavers.xsd
 
 # JetBrains Rider
 *.sln.iml
+/src/Sudachi.Net/DartsClone.NetTests/DATA/system_core.dic
