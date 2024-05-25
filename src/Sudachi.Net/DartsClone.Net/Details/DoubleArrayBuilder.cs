@@ -94,7 +94,10 @@ namespace DartsClone.Net.Details
             for (int i = 0; i < keySet.Size; i++)
             {
                 dawgBuilder.Insert(keySet.GetKey(i), keySet.GetValue(i));
-                progressFunction?.Invoke(i + 1, keySet.Size + 1);
+                if (progressFunction != null)
+                {
+                    progressFunction(i + 1, keySet.Size + 1);
+                }
             }
 
             dawgBuilder.Finish();
@@ -414,6 +417,7 @@ namespace DartsClone.Net.Details
         {
             int srcNumUnits = units.Count;
             int srcNumBlocks = NumBlocks();
+
             int destNumUnits = srcNumUnits + BLOCK_SIZE;
             int destNumBlocks = srcNumBlocks + 1;
 

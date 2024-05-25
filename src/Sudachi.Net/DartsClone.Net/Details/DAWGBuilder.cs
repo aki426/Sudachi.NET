@@ -62,7 +62,7 @@ namespace DartsClone.Net.Details
 
         public int Root() => 0;
 
-        public int Child(int id) => nodes[id].Child;
+        public int Child(int id) => units[id].Child();
 
         public int Sibling(int id) => (units[id].HasSibling()) ? (id + 1) : 0;
 
@@ -180,13 +180,13 @@ namespace DartsClone.Net.Details
 
         public void Clear()
         {
-            nodes.Clear(); // = null;
-            units.Clear(); // = null;
-            labels.Clear(); // = null;
-            isIntersections.Clear(); // = null;
-            table.Clear(); // = null;
-            nodeStack.Clear();  // = null;
-            recycleBin.Clear(); // = null;
+            nodes?.Clear(); // = null;
+            units?.Clear(); // = null;
+            labels?.Clear(); // = null;
+            isIntersections?.Clear(); // = null;
+            table?.Clear(); // = null;
+            nodeStack?.Clear();  // = null;
+            recycleBin?.Clear(); // = null;
         }
 
         private void Flush(int id)
