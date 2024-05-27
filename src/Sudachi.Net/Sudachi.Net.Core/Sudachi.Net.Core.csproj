@@ -21,4 +21,8 @@
     <ProjectReference Include="..\DartsClone.Net\DartsClone.Net.csproj" />
   </ItemGroup>
 
+  <ItemGroup>
+    <Folder Include="Plugins\" />
+  </ItemGroup>
+
 </Project>

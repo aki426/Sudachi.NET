@@ -1,6 +1,7 @@
 ﻿using System;
 using System.Collections.Generic;
 using System.Text;
+using Sudachi.Net.Core.Dictionary.Word;
 
 namespace Sudachi.Net.Core.Dictionary.Lexicon
 {

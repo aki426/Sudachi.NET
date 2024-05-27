@@ -1,6 +1,6 @@
 ﻿using System;
 
-namespace Sudachi.Net.Core.Dictionary
+namespace Sudachi.Net.Core.Dictionary.Word
 {
     /// <summary>
     /// Informations of the morpheme.

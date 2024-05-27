@@ -4,6 +4,7 @@ using System.Linq;
 using System.Text;
 using Sudachi.Net.Core.Utility;
 using System.Text.RegularExpressions;
+using Sudachi.Net.Core.Dictionary.Word;
 
 namespace Sudachi.Net.Core.Dictionary.Build
 {
