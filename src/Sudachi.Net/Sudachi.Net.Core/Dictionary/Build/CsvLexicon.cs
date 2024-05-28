@@ -1,8 +1,8 @@
 ﻿using System;
 using System.Collections.Generic;
+using System.ComponentModel;
 using System.Linq;
 using System.Text;
-using Sudachi.Net.Core.Utility;
 using System.Text.RegularExpressions;
 using Sudachi.Net.Core.Dictionary.Word;
 
@@ -10,13 +10,23 @@ namespace Sudachi.Net.Core.Dictionary.Build
 {
     public class CsvLexicon : IWriteDictionary
     {
-        private const int ArrayMaxLength = byte.MaxValue;
-        private const int MinRequiredNumberOfColumns = 18;
-        private static readonly Regex UnicodeLiteral = new Regex(@"\\u([0-9a-fA-F]{4}|\{[0-9a-fA-F]+})");
-        private static readonly Regex PatternId = new Regex(@"U?\d+");
+        // NOTE: JAVA版ではByteは符号付きでMAX_VALUEは127だが、C#版では符号なしのため255になってしまう。
+
+        private static readonly int ARRAY_MAX_LENGTH = byte.MaxValue;
+
+        private static readonly int MIN_REQUIRED_NUMBER_OF_COLUMNS = 18;
+
+        private static readonly Regex unicodeLiteral = new Regex(@"\\u([0-9a-fA-F]{4}|\{[0-9a-fA-F]+})");
+
+        private static readonly Regex PATTERN_ID = new Regex(@"U?\d+");
+
         private readonly Parameters _parameters = new Parameters();
+
+        // TODO: get; init; に変更
         private readonly POSTable _posTable;
+
         private readonly List<WordEntry> _entries = new List<WordEntry>();
+
         private IWordIdResolver _widResolver = new WordLookup.Noop();
 
         public CsvLexicon(POSTable pos)
@@ -24,25 +34,25 @@ namespace Sudachi.Net.Core.Dictionary.Build
             _posTable = pos;
         }
 
+        // TODO: setterまたはget; init;に変更
+
         public void SetResolver(IWordIdResolver widResolver)
         {
             _widResolver = widResolver;
         }
 
-        /**
-         * Resolve unicode escape sequences in the string
-         * <p>
-         * Sequences are defined to be \\u0000-\\uFFFF: exactly four hexadecimal
-         * characters preceded by \\u \\u{...}: a correct unicode character inside
-         * brackets
-         *
-         * @param text to to resolve sequences
-         * @return string with unicode escapes resolved
-         */
-
+        /// <summary>
+        /// Resolve unicode escape sequences in the string
+        /// <p>
+        /// Sequences are defined to be \\u0000-\\uFFFF: exactly four hexadecimal
+        /// characters preceded by \\u \\u{...}: a correct unicode character inside
+        /// brackets
+        /// </summary>
+        /// <param name="text">text to resolve sequences</param>
+        /// <returns>string with unicode escapes resolved</returns>
         public static string Unescape(string text)
         {
-            Match m = UnicodeLiteral.Match(text);
+            Match m = unicodeLiteral.Match(text);
             if (!m.Success)
             {
                 return text;
@@ -67,7 +77,7 @@ namespace Sudachi.Net.Core.Dictionary.Build
 
         internal WordEntry ParseLine(IReadOnlyList<string> cols)
         {
-            if (cols.Count < MinRequiredNumberOfColumns)
+            if (cols.Count < MIN_REQUIRED_NUMBER_OF_COLUMNS)
             {
                 throw new ArgumentException("invalid format");
             }
@@ -137,7 +147,7 @@ namespace Sudachi.Net.Core.Dictionary.Build
                 return Array.Empty<int>();
             }
             string[] ids = str.Split('/');
-            if (ids.Length > ArrayMaxLength)
+            if (ids.Length > ARRAY_MAX_LENGTH)
             {
                 throw new ArgumentException("too many units");
             }
@@ -165,7 +175,7 @@ namespace Sudachi.Net.Core.Dictionary.Build
 
         private void CheckSplitInfoFormat(string info)
         {
-            if (info.Count(c => c == '/') + 1 > ArrayMaxLength)
+            if (info.Count(c => c == '/') + 1 > ARRAY_MAX_LENGTH)
             {
                 throw new ArgumentException("too many units");
             }
@@ -173,7 +183,7 @@ namespace Sudachi.Net.Core.Dictionary.Build
 
         private bool IsId(string text)
         {
-            return PatternId.IsMatch(text);
+            return PATTERN_ID.IsMatch(text);
         }
 
         private int[] ParseSplitInfo(string info)
@@ -183,7 +193,7 @@ namespace Sudachi.Net.Core.Dictionary.Build
                 return Array.Empty<int>();
             }
             string[] words = info.Split('/');
-            if (words.Length > ArrayMaxLength)
+            if (words.Length > ARRAY_MAX_LENGTH)
             {
                 throw new ArgumentException("too many units");
             }
@@ -254,13 +264,18 @@ namespace Sudachi.Net.Core.Dictionary.Build
                     WordEntry entry = _entries[i];
                     if (buffer.WontFit(16 * 1024))
                     {
-                        offset += buffer.Consume(size => output.Write(buffer.Buffer, 0, size));
+                        // offset += buffer.Consume(size => output.Write(buffer.Buffer, 0, size));
+                        offset += buffer.Consume((buffer, offset, length) =>
+                        {
+                            output.Write(buffer, offset, length);
+                            return length;
+                        });
                     }
                     offsets.PutInt(offset + buffer.Position);
 
                     WordInfo wi = entry.WordInfo;
                     buffer.Put(wi.Surface);
-                    buffer.PutLength(wi.Length);
+                    buffer.PutLength(wi.HeadwordLength);
                     buffer.PutShort(wi.POSId);
                     buffer.PutEmptyIfEqual(wi.NormalizedForm, wi.Surface);
                     buffer.PutInt(wi.DictionaryFormWordId);
@@ -268,16 +283,25 @@ namespace Sudachi.Net.Core.Dictionary.Build
                     buffer.PutInts(ParseSplitInfo(entry.AUnitSplitString));
                     buffer.PutInts(ParseSplitInfo(entry.BUnitSplitString));
                     buffer.PutInts(ParseSplitInfo(entry.WordStructureString));
-                    buffer.PutInts(wi.SynonymGoupIds);
+                    buffer.PutInts(wi.SynonymGroupIds);
                     output.ReportProgress(i, numEntries);
                 }
 
-                return buffer.Consume(size => output.Write(buffer.Buffer, 0, size));
+                return buffer.Consume((buffer, offset, length) =>
+                {
+                    output.Write(buffer, offset, length);
+                    return length;
+                });
             });
 
             long pos = output.Position;
             output.Position = offsetsPosition;
-            output.WithSizedPart("WordInfo offsets", () => offsets.Consume(size => output.Write(offsets.Buffer, 0, size)));
+            output.WithSizedPart("WordInfo offsets", () => offsets.Consume((buffer, offset, length) =>
+            {
+                output.Write(buffer, offset, length);
+                return length;
+            }));
+
             output.Position = pos;
         }
 

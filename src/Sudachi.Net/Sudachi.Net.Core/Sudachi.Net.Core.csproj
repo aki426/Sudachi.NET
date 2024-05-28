@@ -23,6 +23,7 @@
 
   <ItemGroup>
     <Folder Include="Plugins\" />
+    <Folder Include="Utility\" />
   </ItemGroup>
 
 </Project>

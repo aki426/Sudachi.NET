@@ -1,19 +1,20 @@
-﻿using Sudachi.Net.Core.Dictionary.Build;
-using Sudachi.Net.Core.Utility;
+﻿using System;
 
 namespace Sudachi.Net.Core.Dictionary.Word
 {
     internal class WordIdTable
     {
-        private readonly ByteBuffer bytes;
+        private readonly Memory<byte> bytes;
         private readonly int size;
         private readonly int offset;
         private int dicIdMask = 0;
 
-        public WordIdTable(ByteBuffer bytes, int offset)
+        public WordIdTable(Memory<byte> bytes, int offset)
         {
             this.bytes = bytes;
-            size = bytes.GetInt(offset);
+            // 4byte読み取ってintに変換してsizeとする。
+            size = BitConverter.ToInt32(bytes.Span.Slice(offset, 4).ToArray(), 0);
+            // 頭の4byteを読み飛ばす
             this.offset = offset + 4;
         }
 
@@ -24,11 +25,11 @@ namespace Sudachi.Net.Core.Dictionary.Word
 
         public int[] Get(int index)
         {
-            int length = bytes.Get(offset + index++);
+            int length = bytes.Span[offset + index++];
             int[] result = new int[length];
             for (int i = 0; i < length; i++)
             {
-                result[i] = bytes.GetInt(offset + index);
+                result[i] = BitConverter.ToInt32(bytes.Span.Slice(offset + index, 4).ToArray(), 0);
                 index += 4;
             }
             return result;
@@ -47,14 +48,14 @@ namespace Sudachi.Net.Core.Dictionary.Word
         public int ReadWordIds(int index, WordLookup lookup)
         {
             int offset = this.offset + index;
-            ByteBuffer bytes = this.bytes;
-            int length = bytes.Get(offset);
+            Memory<byte> bytes = this.bytes;
+            int length = bytes.Span[offset];
             offset += 1;
             int[] result = lookup.OutputBuffer(length);
             int dicIdMask = this.dicIdMask;
             for (int i = 0; i < length; i++)
             {
-                int wordId = bytes.GetInt(offset);
+                int wordId = BitConverter.ToInt32(bytes.Span.Slice(offset, 4).ToArray(), 0);
                 result[i] = WordId.ApplyMask(wordId, dicIdMask);
                 offset += 4;
             }

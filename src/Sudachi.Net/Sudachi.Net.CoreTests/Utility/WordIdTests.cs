@@ -1,5 +1,5 @@
 ﻿using FluentAssertions;
-using Sudachi.Net.Core.Utility;
+using Sudachi.Net.Core.Dictionary.Word;
 using Xunit;
 
 namespace Sudachi.Net.CoreTests.Utility

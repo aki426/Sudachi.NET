@@ -1,6 +1,6 @@
 ﻿using System;
 
-namespace Sudachi.Net.Core.Utility
+namespace Sudachi.Net.Core.Dictionary.Word
 {
     //   Copyright (c) 2024 KANEDA Akihiro <taoist.aki@gmail.com>
     //

@@ -1,7 +1,8 @@
 ﻿using System;
 using System.Collections.Generic;
 using System.Text;
-using Sudachi.Net.Core.Utility;
+using Sudachi.Net.Core.Dictionary.Lexicon;
+using Sudachi.Net.Core.Dictionary.Word;
 
 namespace Sudachi.Net.Core.Dictionary.Build
 {
@@ -71,10 +72,10 @@ namespace Sudachi.Net.Core.Dictionary.Build
 
         public class Prebuilt : IWordIdResolver
         {
-            private readonly Lexicon _lexicon;
+            private readonly ILexicon _lexicon;
             private readonly int _prebuiltSize;
 
-            public Prebuilt(Lexicon lexicon)
+            public Prebuilt(ILexicon lexicon)
             {
                 _lexicon = lexicon;
                 _prebuiltSize = lexicon.Size;
@@ -87,7 +88,7 @@ namespace Sudachi.Net.Core.Dictionary.Build
 
             public void Validate(int wordId)
             {
-                int word = WordId.GetWord(wordId);
+                int word = WordId.Word(wordId);
                 if (word > _prebuiltSize)
                 {
                     throw new ArgumentException("WordId was larger than the number of dictionary entries");
@@ -123,14 +124,14 @@ namespace Sudachi.Net.Core.Dictionary.Build
 
             public void Validate(int wordId)
             {
-                int dic = WordId.GetDic(wordId);
+                int dic = WordId.Dic(wordId);
                 if (dic == 0)
                 {
                     _system.Validate(wordId);
                 }
                 else if (dic == 1)
                 {
-                    _user.Validate(WordId.GetWord(wordId));
+                    _user.Validate(WordId.Word(wordId));
                 }
                 else
                 {
