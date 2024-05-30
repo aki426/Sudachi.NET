@@ -1,13 +1,11 @@
 ﻿using System;
-using System.Collections.Generic;
 using System.IO;
-using System.Text;
-using Sudachi.Net.Core.SentDetect;
-using System.Xml.Linq;
 using System.Net;
 
-namespace Sudachi.Net.Core.SentDetect
+namespace Sudachi.Net.Core.Configurations
 {
+    // TODO: 元はConfigクラスの内部クラスである。最適な配置を検討する。
+
     /// <summary>
     /// A container for the resource, allowing to combine lazy loading with providing
     /// prebuilt resources. Use <see cref="PathAnchor"/> to create resources.
