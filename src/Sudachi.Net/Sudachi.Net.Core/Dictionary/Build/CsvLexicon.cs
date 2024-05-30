@@ -284,7 +284,7 @@ namespace Sudachi.Net.Core.Dictionary.Build
                     buffer.PutInts(ParseSplitInfo(entry.BUnitSplitString));
                     buffer.PutInts(ParseSplitInfo(entry.WordStructureString));
                     buffer.PutInts(wi.SynonymGroupIds);
-                    output.ReportProgress(i, numEntries);
+                    output.LimitedProgress(i, numEntries);
                 }
 
                 return buffer.Consume((buffer, offset, length) =>

@@ -47,11 +47,11 @@ namespace Sudachi.Net.Core.Dictionary.Build
             public BuildStats Build(Stream result)
             {
                 Lexicon.SetResolver(Resolver());
-                ModelOutput output = new ModelOutput(result);
-                if (_progress != null)
-                {
-                    output.SetProgressor(_progress);
-                }
+                ModelOutput output = new ModelOutput(result, _progress);
+                //if (_progress != null)
+                //{
+                //    output.SetProgressor(_progress);
+                //}
                 DictionaryHeader header = new DictionaryHeader(Version, CreationTime, Description);
 
                 byte[] headerBuffer = header.ToBytes();

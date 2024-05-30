@@ -57,7 +57,7 @@ namespace Sudachi.Net.Core.Dictionary.Build
                         {
                             writer.Write(wid);
                         }
-                        output.ReportProgress(i, numEntries);
+                        output.LimitedProgress(i, numEntries);
                     }
                     return (int)ms.Position + 4;
                 });
